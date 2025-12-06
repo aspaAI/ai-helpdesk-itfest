@@ -1,0 +1,431 @@
+{
+  "nodes": [
+    {
+      "parameters": {
+        "updates": [
+          "message"
+        ],
+        "additionalFields": {}
+      },
+      "type": "n8n-nodes-base.telegramTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        -1360,
+        208
+      ],
+      "id": "4426ab3f-c1ca-4766-a892-6bf6d35eaef1",
+      "name": "Telegram Trigger",
+      "webhookId": "db400580-38f0-49e9-8422-48bc11ca0e62",
+      "credentials": {
+        "telegramApi": {
+          "id": "NfxQdmu4lR5W3aCC",
+          "name": "Telegram account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Получаем сообщение от пользователя\nconst inputData = $input.item.json;\nconst message = inputData.message;\nconst chatId = message.chat.id;\nconst userName = message.from.first_name || \"друг\";\n\n// === ПРОВЕРЯЕМ ЕСТЬ ЛИ ФОТО ===\nconst hasPhoto = message.photo && message.photo.length > 0;\n\nif (hasPhoto) {\n  // Получаем фото в лучшем качестве (последнее в массиве)\n  const photo = message.photo[message.photo.length - 1];\n  const caption = message.caption || \"Объясни что на этом изображении\";\n  \n  return {\n    json: {\n      photoFileId: photo.file_id,\n      photoCaption: caption,\n      chatId: chatId,\n      userName: userName,\n      hasPhoto: true,\n      useAI: false  // false потому что это отдельная ветка\n    }\n  };\n}\n\n// === ПРОВЕРЯЕМ ТЕКСТОВОЕ СООБЩЕНИЕ ===\nconst text = message.text;\n\nif (!text) {\n  // Если ни фото ни текста\n  return {\n    json: {\n      response: \"Отправь мне текст или фото, и я помогу! 😊\",\n      chatId: chatId,\n      useAI: false\n    }\n  };\n}\n\n// === КОМАНДЫ (как было раньше) ===\n\nif (text === '/start') {\n  const response = `Привет, ${userName}! 👋\n\nЯ твой AI-помощник для учебы! 🎓\n\n🤖 Что я умею:\n- Отвечаю на любые вопросы\n- Объясняю сложные темы\n- Создаю тесты по темам\n- Проверяю грамматику\n- 📸 Анализирую фото (формулы, конспекты, задачи)\n- Работаю на казахском и русском языках\n\n📝 Команды:\n/quiz [тема] - создать тест\n/eli5 [тема] - объяснить просто\n/check [текст] - проверить грамматику\n/help - все команды\n\n💡 Просто напиши мне любой вопрос или отправь фото!\n\nНапример: \n✍️ \"Объясни что такое фотосинтез\"\n📸 [Фото формулы] \"Реши это уравнение\"`;\n\n  return {\n    json: {\n      response: response,\n      chatId: chatId,\n      useAI: false\n    }\n  };\n}\n\nelse if (text === '/help') {\n  const response = `🤖 Список команд:\n\n📚 Обучение:\n/quiz [тема] - Создать тест по теме\n/eli5 [тема] - Объяснить просто\n/check [текст] - Проверить грамматику\n\n📸 Работа с фото:\nПросто отправь фото с подписью:\n- Фото формулы + \"реши\"\n- Фото конспекта + \"кратко\"\n- Фото на английском + \"переведи\"\n\nℹ️ Информация:\n/start - Начать работу\n/about - О боте\n/help - Эта справка\n\n💡 Совет: Можешь просто писать вопросы без команд!`;\n\n  return {\n    json: {\n      response: response,\n      chatId: chatId,\n      useAI: false\n    }\n  };\n}\n\nelse if (text === '/about') {\n  const response = `📚 AI Study Assistant\n\n🎓 Твой персональный помощник для учебы\n\n✨ Возможности:\n- Ответы на вопросы по любым предметам\n- Объяснение сложных тем простым языком\n- Генерация тестов и викторин\n- Проверка текстов на ошибки\n- 📸 Анализ фото и изображений\n- Поддержка казахского и русского языков\n\n🚀 Создано для хакатона 2025\n💻 Powered by OpenAI GPT-4 Vision\n\nЗадавай любые вопросы - я здесь чтобы помочь! 😊`;\n\n  return {\n    json: {\n      response: response,\n      chatId: chatId,\n      useAI: false\n    }\n  };\n}\n\n// === СПЕЦИАЛЬНЫЕ КОМАНДЫ ===\n\nelse if (text.startsWith('/quiz ')) {\n  const topic = text.replace('/quiz ', '');\n  const prompt = `Создай тест из 5 вопросов с 4 вариантами ответов по теме \"${topic}\". \nФормат для каждого вопроса:\n\n❓ Вопрос?\nA) Вариант 1\nB) Вариант 2\nC) Вариант 3\nD) Вариант 4\n\nВ самом конце укажи: \"✅ Правильные ответы: 1-B, 2-A, 3-C, 4-D, 5-A\"`;\n\n  return {\n    json: {\n      question: prompt,\n      chatId: chatId,\n      useAI: true\n    }\n  };\n}\n\nelse if (text.startsWith('/eli5 ')) {\n  const topic = text.replace('/eli5 ', '');\n  return {\n    json: {\n      question: `Объясни очень простыми словами, чтобы понял даже ребёнок: ${topic}. Используй аналогии и примеры из жизни.`,\n      chatId: chatId,\n      useAI: true\n    }\n  };\n}\n\nelse if (text.startsWith('/check ')) {\n  const checkText = text.replace('/check ', '');\n  return {\n    json: {\n      question: `Проверь текст на грамматические ошибки и исправь их. Если ошибок нет - так и напиши. Текст: \"${checkText}\"`,\n      chatId: chatId,\n      useAI: true\n    }\n  };\n}\n\n// === ОБЫЧНЫЕ ПРИВЕТСТВИЯ (БЕЗ AI) ===\n\nelse if (text.toLowerCase().includes('привет') || \n         text.toLowerCase().includes('здравствуй') ||\n         text.toLowerCase().includes('салам') ||\n         text.toLowerCase().includes('сәлем') ||\n         text.toLowerCase().includes('hello') ||\n         text.toLowerCase().includes('саламалейкум')) {\n  \n  let response = `Привет, ${userName}! 👋`;\n  \n  if (text.toLowerCase().includes('салам') || \n      text.toLowerCase().includes('сәлем') ||\n      text.toLowerCase().includes('саламалейкум')) {\n    response = `Уалейкумсалам, ${userName}! 🤝`;\n  }\n  \n  response += `\\n\\nЧем могу помочь? Задай любой вопрос или отправь фото! 😊`;\n  \n  return {\n    json: {\n      response: response,\n      chatId: chatId,\n      useAI: false\n    }\n  };\n}\n\n// === ВСЁ ОСТАЛЬНОЕ ИДЁТ В AI ===\n\nelse {\n  return {\n    json: {\n      question: text,\n      chatId: chatId,\n      useAI: true\n    }\n  };\n}"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -1152,
+        208
+      ],
+      "id": "916d6fef-b28f-449d-a130-5d5764be3941",
+      "name": "Code in JavaScript"
+    },
+    {
+      "parameters": {
+        "chatId": "={{ $json.chatId }}",
+        "text": "={{ $json.text }}",
+        "additionalFields": {}
+      },
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        1392,
+        304
+      ],
+      "id": "793a36c8-3156-4b61-b615-0cc1bf15dc75",
+      "name": "Send a text message",
+      "webhookId": "c97da13d-3690-445c-a74e-26634e5e5988",
+      "credentials": {
+        "telegramApi": {
+          "id": "NfxQdmu4lR5W3aCC",
+          "name": "Telegram account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "d1e195ae-28fd-4610-bd0c-eb77e8e92a75",
+              "leftValue": "={{ $json.useAI }}",
+              "rightValue": "true",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            },
+            {
+              "id": "e93aa78a-d081-408d-9ff7-4a8b448d295d",
+              "leftValue": "={{ $json.hasPhoto }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "or"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        -944,
+        208
+      ],
+      "id": "27d9a43b-3a17-4a17-8d21-61e9ed65e927",
+      "name": "If"
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=={{ $json.question }}",
+        "batching": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.chainLlm",
+      "typeVersion": 1.7,
+      "position": [
+        -96,
+        304
+      ],
+      "id": "735c0db1-f925-470c-a1f2-bd5dfe5962d5",
+      "name": "Basic LLM Chain"
+    },
+    {
+      "parameters": {
+        "model": {
+          "__rl": true,
+          "mode": "list",
+          "value": "gpt-4.1-mini"
+        },
+        "builtInTools": {},
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1.3,
+      "position": [
+        -16,
+        176
+      ],
+      "id": "6644899c-4e03-4b4f-a633-b62979f7f226",
+      "name": "OpenAI Chat Model",
+      "credentials": {
+        "openAiApi": {
+          "id": "R8YelDFoyot4BzjW",
+          "name": "OpenAi account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Передаем обычный ответ дальше\nreturn {\n  json: {\n    text: $json.response,  // ← Изменили text на response!\n    chatId: $json.chatId\n  }\n};"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -192,
+        608
+      ],
+      "id": "b15c6f37-79b7-4f2d-86e2-aaa7e5a660b4",
+      "name": "Code in JavaScript2"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "4b356ea9-1cc2-4887-a98a-0330cc698c65",
+              "name": "chatid",
+              "value": "=={{ $json.chatId }}",
+              "type": "string"
+            }
+          ]
+        },
+        "includeOtherFields": true,
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        -320,
+        304
+      ],
+      "id": "e49b73ec-8421-4517-94eb-fe729fc51eb3",
+      "name": "Edit Fields"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Получаем ответ от LLM\nconst llmOutput = $input.item.json;\nconst aiResponse = llmOutput.output || llmOutput.text;\n\n// Берём chatId напрямую из Edit Fields (не из текущей ноды!)\nconst chatId = $node[\"Edit Fields\"].json.chatId;\n\n// Проверка\nif (!chatId) {\n  throw new Error('chatId не найден в Edit Fields!');\n}\n\nif (!aiResponse) {\n  throw new Error('AI ответ пустой!');\n}\n\nconsole.log('CHAT ID:', chatId);\nconsole.log('AI RESPONSE:', aiResponse);\n\nreturn {\n  json: {\n    text: aiResponse,\n    chatId: chatId\n  }\n};"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        304,
+        304
+      ],
+      "id": "ff42f20d-e367-4123-9ec4-230260d899f7",
+      "name": "Format AI response"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "e9030037-95c0-48f5-af5b-93072293736b",
+              "leftValue": "={{ $json.hasPhoto }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        -736,
+        112
+      ],
+      "id": "257349aa-3a99-4f1c-992d-c50bda4dd093",
+      "name": "check photo or text"
+    },
+    {
+      "parameters": {
+        "jsCode": "const visionData = $input.item.json;\nconst aiResponse = visionData.choices[0].message.content;\nconst chatId = $node[\"Get File Path\"].json.chatId;\n\nreturn {\n  json: {\n    text: \"📸 Анализ изображения:\\n\\n\" + aiResponse,\n    chatId: chatId\n  }\n};"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        944,
+        16
+      ],
+      "id": "f6d3cbaa-c46c-4cbd-9afd-63d3ad9d95c9",
+      "name": "Format Vision Response"
+    },
+    {
+      "parameters": {
+        "resource": "file",
+        "fileId": "={{ $json.photoFileId }}",
+        "additionalFields": {}
+      },
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        -528,
+        16
+      ],
+      "id": "e36afb48-34f3-44a6-9bd9-1dae226be754",
+      "name": "Get a file",
+      "webhookId": "109b866b-2651-49f2-94dd-02242af09c71",
+      "credentials": {
+        "telegramApi": {
+          "id": "NfxQdmu4lR5W3aCC",
+          "name": "Telegram account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Получаем caption и chatId из первой ноды\nconst caption = $node[\"Code in JavaScript\"].json.photoCaption;\nconst chatId = $node[\"Code in JavaScript\"].json.chatId;\n\n// API ключ OpenAI\nconst apiKey = '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'; // ← ВСТАВЬТЕ!\n\n// Читаем binary данные напрямую из input\nconst binaryPropertyName = Object.keys($binary)[0];\nconst binaryData = $binary[binaryPropertyName];\n\nconsole.log('Binary property name:', binaryPropertyName);\nconsole.log('Binary data keys:', Object.keys(binaryData));\n\n// Получаем base64 через n8n helper\nconst buffer = await this.helpers.getBinaryDataBuffer(binaryPropertyName);\nconst base64String = buffer.toString('base64');\nconst mimeType = binaryData.mimeType || 'image/jpeg';\n\nconsole.log('Mime type:', mimeType);\nconsole.log('Base64 length:', base64String.length);\nconsole.log('Base64 preview:', base64String.substring(0, 50));\n\n// Строим data URL\nconst dataUrl = `data:${mimeType};base64,${base64String}`;\n\n// Тело запроса\nconst requestBody = {\n  model: 'gpt-4o',\n  messages: [\n    {\n      role: 'user',\n      content: [\n        {\n          type: 'text',\n          text: `${caption}. Отвечай подробно и понятно на русском языке.`\n        },\n        {\n          type: 'image_url',\n          image_url: {\n            url: dataUrl,\n            detail: 'auto'\n          }\n        }\n      ]\n    }\n  ],\n  max_tokens: 1000\n};\n\n// Запрос к OpenAI\ntry {\n  const response = await this.helpers.httpRequest({\n    method: 'POST',\n    url: 'https://api.openai.com/v1/chat/completions',\n    headers: {\n      'Content-Type': 'application/json',\n      'Authorization': `Bearer ${apiKey}`\n    },\n    body: requestBody,\n    json: true,\n    timeout: 60000\n  });\n\n  const aiResponse = response.choices[0].message.content;\n\n  return {\n    json: {\n      text: \"📸 Анализ изображения:\\n\\n\" + aiResponse,\n      chatId: chatId\n    }\n  };\n  \n} catch (error) {\n  console.error('Error:', JSON.stringify(error, null, 2));\n  \n  if (error.response && error.response.body) {\n    console.error('OpenAI Error:', JSON.stringify(error.response.body, null, 2));\n    throw new Error(`OpenAI: ${error.response.body.error?.message || JSON.stringify(error.response.body)}`);\n  }\n  \n  throw error;\n}\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        0,
+        0
+      ],
+      "id": "5fce5feb-47ed-4f91-988b-6404987f1329",
+      "name": "Process Image with GPT-4"
+    }
+  ],
+  "connections": {
+    "Telegram Trigger": {
+      "main": [
+        [
+          {
+            "node": "Code in JavaScript",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code in JavaScript": {
+      "main": [
+        [
+          {
+            "node": "If",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If": {
+      "main": [
+        [
+          {
+            "node": "check photo or text",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Code in JavaScript2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Basic LLM Chain": {
+      "main": [
+        [
+          {
+            "node": "Format AI response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenAI Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Basic LLM Chain",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code in JavaScript2": {
+      "main": [
+        [
+          {
+            "node": "Send a text message",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Edit Fields": {
+      "main": [
+        [
+          {
+            "node": "Basic LLM Chain",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Format AI response": {
+      "main": [
+        [
+          {
+            "node": "Send a text message",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "check photo or text": {
+      "main": [
+        [
+          {
+            "node": "Get a file",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Edit Fields",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Format Vision Response": {
+      "main": [
+        [
+          {
+            "node": "Send a text message",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get a file": {
+      "main": [
+        [
+          {
+            "node": "Process Image with GPT-4",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Process Image with GPT-4": {
+      "main": [
+        [
+          {
+            "node": "Format Vision Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "pinData": {},
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "1d525cc0fa1f96e1c1660b06ed7ce6e40fc2c0bee579efd3b48af4e9d2ba43b8"
+  }
+}
